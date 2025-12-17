@@ -1,5 +1,7 @@
 # TRMNL Health Dashboard
 
+> **Note**: This repo exists purely for my personal curiosity/projects. It’s tailored to my hardware, files, and TRMNL plugin settings; it is not intended for plug-and-play use.
+
 Scripts that parse `~/Notes/totocaster/Attachments/weight-loss-tracker.csv`, build a morning snapshot of weight, nutrition, and Whoop metrics, and push the summary to your TRMNL private plugin via webhook.
 
 ## Setup
@@ -75,7 +77,7 @@ The entire payload stays under 2 kB, so it fits the webhook limit. Rate limiting
    This schedules a run once each hour at minute 30 and also fires immediately on login/boot (`RunAtLoad`). If the Mac is asleep, launchd will execute the script soon after wake. Logs from launchd go to `~/Library/Logs/trmnl_health.launchd.log`.
 3. **Manual control**
    ```bash
-   launchctl start com.toto.trmnlhealth   # triggers immediately
+   launchctl start co.ttvl.trmnlhealth   # triggers immediately
    launchctl unload ~/Library/LaunchAgents/com.toto.trmnlhealth.plist
    ```
    Update the plist if paths change, then unload/load again.
