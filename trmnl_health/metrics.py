@@ -52,6 +52,8 @@ class WeightSnapshot:
     lookback_avg_weight: Optional[float]
     lookback_days: int
     latest_date: date
+    start_date: Optional[date]
+    days_since_start: Optional[int]
 
 
 @dataclass(frozen=True)
@@ -77,11 +79,11 @@ def _find_previous(records: Sequence[DailyRecord], idx: int) -> Optional[DailyRe
     return None
 
 
-def _first_weight(records: Sequence[DailyRecord]) -> Optional[float]:
+def _first_weight(records: Sequence[DailyRecord]) -> tuple[Optional[float], Optional[date]]:
     for record in records:
         if record.weight_kg is not None:
-            return record.weight_kg
-    return None
+            return record.weight_kg, record.date
+    return None, None
 
 
 def summarize(records: List[DailyRecord], settings: Settings, lookback_days: int) -> Summary:
@@ -91,9 +93,13 @@ def summarize(records: List[DailyRecord], settings: Settings, lookback_days: int
     latest = records[-1]
     previous = _find_previous(records, len(records) - 1)
 
-    start_weight = settings.starting_weight_override or _first_weight(records)
+    first_weight, first_date = _first_weight(records)
+    start_weight = settings.starting_weight_override or first_weight
     lookback_days = max(lookback_days, 1)
     recent_records = take_recent(records, lookback_days, latest.date)
+    days_since_start: Optional[int] = None
+    if first_date:
+        days_since_start = (latest.date - first_date).days or 1
 
     weight_snapshot = WeightSnapshot(
         latest_weight=latest.weight_kg,
@@ -104,6 +110,8 @@ def summarize(records: List[DailyRecord], settings: Settings, lookback_days: int
         lookback_avg_weight=_mean([record.weight_kg for record in recent_records]),
         lookback_days=lookback_days,
         latest_date=latest.date,
+        start_date=first_date,
+        days_since_start=days_since_start,
     )
 
     macro_latest = MacroSnapshot(

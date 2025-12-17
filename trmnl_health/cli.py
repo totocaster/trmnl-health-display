@@ -27,7 +27,7 @@ def publish(
     settings = load_settings()
     records = load_records(settings.csv_path)
     summary = summarize(records, settings, lookback_days)
-    history_length = min(len(records), 10)
+    history_length = min(len(records), 14)
     history = records[-history_length:] if history_length else []
     payload = build_payload(summary, settings, history)
     current_hash = payload_hash(payload)

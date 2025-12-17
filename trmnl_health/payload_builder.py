@@ -2,27 +2,13 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, asdict
+from datetime import timedelta
 from typing import Any, Dict, List, Optional, Sequence
 from zoneinfo import ZoneInfo
 
 from .data_sources import DailyRecord
 from .metrics import Summary
-from .settings import MacroTargets, Settings
-
-
-@dataclass
-class CardRow:
-    label: str
-    value: str
-    hint: Optional[str] = None
-    trend: Optional[str] = None
-
-
-@dataclass
-class Card:
-    title: str
-    rows: List[CardRow]
+from .settings import Settings
 
 
 def _fmt_number(value: Optional[float], unit: str, precision: int = 1) -> str:
@@ -40,38 +26,10 @@ def _fmt_delta(value: Optional[float], unit: str = "", precision: int = 1) -> st
     return f"{sign}{value:.{precision}f}{unit}"
 
 
-def _macro_hint(label: str, target: float, unit: str = "g") -> str:
-    return f"Goal {target:.0f}{unit}"
-
-
-def _calorie_hint(targets: MacroTargets) -> str:
-    return f"{int(targets.calories_min)}-{int(targets.calories_max)} kcal"
-
-
-def _compliance_badge(value: Optional[float], low: float, high: float) -> str:
-    if value is None:
-        return "No data"
-    if low <= value <= high:
-        return "On target"
-    if value < low:
-        return "Low"
-    return "High"
-
-
-def _macro_badge(value: Optional[float], target: float, tolerance_percent: float = 0.1) -> str:
-    if value is None:
-        return "No data"
-    delta = value - target
-    tolerance = target * tolerance_percent
-    if abs(delta) <= tolerance:
-        return "On target"
-    return "Low" if delta < 0 else "High"
-
-
 def _tz(timezone_name: str) -> ZoneInfo:
     try:
         return ZoneInfo(timezone_name)
-    except Exception:  # pragma: no cover - fallback for invalid tz names
+    except Exception:  # pragma: no cover
         return ZoneInfo("UTC")
 
 
@@ -79,14 +37,11 @@ def _line_chart(history: Sequence[DailyRecord], attr: str, unit: str) -> Optiona
     if not history:
         return None
 
-    width = 280
-    height = 80
-    points = []
+    points: List[tuple[int, float]] = []
     for idx, record in enumerate(history):
         value = getattr(record, attr)
-        if value is None:
-            continue
-        points.append((idx, value))
+        if value is not None:
+            points.append((idx, value))
 
     if len(points) < 2:
         return None
@@ -98,13 +53,12 @@ def _line_chart(history: Sequence[DailyRecord], attr: str, unit: str) -> Optiona
         min_val -= 0.5
         max_val += 0.5
 
-    span = max(len(history) - 1, 1)
-    step = width / span
+    width = max(len(history) - 1, 1)
     coord_pairs = []
     for idx, value in points:
-        x = round(idx * step, 1)
+        x = round((idx / width) * 280, 1)
         norm = (value - min_val) / (max_val - min_val)
-        y = round(height - (norm * height), 1)
+        y = round(80 - (norm * 80), 1)
         coord_pairs.append(f"{x},{y}")
 
     return {
@@ -114,193 +68,157 @@ def _line_chart(history: Sequence[DailyRecord], attr: str, unit: str) -> Optiona
     }
 
 
-def _protein_bars(history: Sequence[DailyRecord], target: float) -> Optional[Dict[str, Any]]:
-    if not history:
+def _bar_chart(
+    history: Sequence[DailyRecord],
+    attr: str,
+    *,
+    unit: str,
+    target: Optional[float] = None,
+    calories_factor: Optional[float] = None,
+    scale_override: Optional[float] = None,
+) -> Optional[Dict[str, Any]]:
+    values = [getattr(record, attr) for record in history if getattr(record, attr) is not None]
+    if not values:
         return None
 
-    width = 280
-    height = 80
-    count = len(history)
-    if count == 0:
-        return None
+    scale = scale_override or target or max(values)
+    if scale <= 0:
+        scale = max(values)
 
-    slot_width = width / count
-    bar_width = max(slot_width - 2, 4)
-    bars = []
-    for idx, record in enumerate(history):
-        value = record.protein_g
-        ratio = 0.0
-        if value is not None and target > 0:
-            ratio = min(value / target, 1.0)
-        bar_height = round(ratio * height, 2)
-        x = round(idx * slot_width + (slot_width - bar_width) / 2, 1)
-        y = round(height - bar_height, 1)
-        bars.append({"x": x, "y": y, "height": round(bar_height, 1)})
+    heights: List[float] = []
+    values: List[str] = []
+    percents: List[str] = []
+    for record in history:
+        value = getattr(record, attr)
+        if value is None or value <= 0:
+            height = 0.0
+            display = "—"
+        else:
+            ratio = min(value / scale, 1.0)
+            height = round(ratio * 80, 1)
+            display = f"{value:.0f}{unit}"
+
+        percent = None
+        if calories_factor and value is not None and value > 0 and record.calories_kcal:
+            fraction = min(1.0, (value * calories_factor) / record.calories_kcal)
+            percent = f"{fraction * 100:.0f}%"
+
+        heights.append(height)
+        values.append(display)
+        percents.append(percent or "")
+
+    meta: Dict[str, Any] = {
+        "heights": heights,
+        "values": values,
+        "percents": percents,
+    }
+    if target:
+        meta["target_label"] = f"{target:.0f}{unit}"
+    elif scale_override:
+        meta["target_label"] = f"max {scale_override:.0f}{unit}"
+    else:
+        meta["target_label"] = f"max {scale:.0f}{unit}"
+    return meta
+
+
+def _projection(summary: Summary) -> Dict[str, Any]:
+    latest_weight = summary.weight.latest_weight
+    start_weight = summary.weight.start_weight
+    start_date = summary.weight.start_date
+    target_weight = summary.weight.target_weight
+    days_since_start = summary.weight.days_since_start
+
+    if (
+        latest_weight is None
+        or start_weight is None
+        or start_date is None
+        or days_since_start is None
+        or days_since_start <= 0
+    ):
+        return {"message": "Not enough data to estimate trend yet."}
+
+    delta = latest_weight - start_weight
+    rate_per_day = delta / days_since_start
+    if rate_per_day >= 0:
+        return {"message": "Weight is flat or increasing; projection paused."}
+
+    remaining = latest_weight - target_weight
+    if remaining <= 0:
+        return {"message": "Target already reached. Congrats!"}
+
+    loss_per_day = abs(rate_per_day)
+    days_to_goal = remaining / loss_per_day
+    base_date = summary.generated_at.date()
+    goal_date = base_date + timedelta(days=round(days_to_goal))
+
+    fractions = [0.8, 0.6, 0.4, 0.2]
+    milestones = []
+    for fraction in fractions:
+        weight_value = target_weight + (remaining * fraction)
+        milestone_days = round(days_to_goal * fraction)
+        milestone_date = base_date + timedelta(days=milestone_days)
+        milestones.append(
+            {
+                "weight": f"{weight_value:.1f} kg",
+                "date": milestone_date.strftime("%b %d"),
+            }
+        )
 
     return {
-        "bars": bars,
-        "bar_width": round(bar_width, 1),
-        "target_label": f"{target:.0f} g",
+        "rate_per_day": f"{loss_per_day:.2f} kg/day",
+        "rate_per_week": f"{loss_per_day * 7:.2f} kg/week",
+        "goal_date": goal_date.strftime("%b %d, %Y"),
+        "milestones": milestones,
     }
 
 
 def build_payload(summary: Summary, settings: Settings, history: Sequence[DailyRecord]) -> Dict[str, Any]:
     tzinfo = _tz(settings.timezone)
     generated_local = summary.generated_at.astimezone(tzinfo)
-    latest_record = summary.latest_record
 
-    header_value = _fmt_number(summary.weight.latest_weight, " kg")
-    subtitle = f"{_fmt_delta(summary.target_delta, ' kg')} to target ({settings.target_weight_kg:.1f} kg)"
+    weight_delta_prev = summary.weight_delta_prev
+    total_lost = None
+    if summary.weight.start_weight is not None and summary.weight.latest_weight is not None:
+        total_lost = summary.weight.start_weight - summary.weight.latest_weight
 
-    progress = None
-    if summary.progress_percent is not None:
-        progress = {
-            "percent": round(summary.progress_percent, 1),
-            "label": subtitle,
-        }
+    to_goal = None
+    if summary.target_delta is not None:
+        to_goal = abs(summary.target_delta)
 
-    weight_card = Card(
-        title="Weight",
-        rows=[
-            CardRow(
-                label="Today",
-                value=f"{header_value} · {summary.weight.latest_date.strftime('%a %b %d')}",
-                hint=f"Meal: {latest_record.meal_type or 'n/a'}",
-            ),
-            CardRow(
-                label="Vs prev",
-                value=_fmt_delta(summary.weight_delta_prev, " kg"),
-                hint="Since last logged day",
-            ),
-            CardRow(
-                label=f"{summary.weight.lookback_days}d avg",
-                value=_fmt_number(summary.weight.lookback_avg_weight, " kg"),
-                hint="Rolling average",
-            ),
-            CardRow(
-                label="Waist",
-                value=_fmt_number(summary.weight.waist_cm, " cm"),
-            ),
-        ],
-    )
+    summary_block = {
+        "current_weight": _fmt_number(summary.weight.latest_weight, " kg"),
+        "delta_daily": _fmt_delta(weight_delta_prev, " kg"),
+        "total_lost": _fmt_number(total_lost, " kg"),
+        "to_goal": _fmt_number(to_goal, " kg"),
+    }
 
-    macro_targets = settings.macro_targets
-    macros_card = Card(
-        title="Nutrition",
-        rows=[
-            CardRow(
-                label="Calories",
-                value=_fmt_number(summary.macro_latest.calories_kcal, " kcal", precision=0),
-                hint=_calorie_hint(macro_targets) + f" · {_compliance_badge(summary.macro_latest.calories_kcal, macro_targets.calories_min, macro_targets.calories_max)}",
-            ),
-            CardRow(
-                label="Protein",
-                value=_fmt_number(summary.macro_latest.protein_g, " g", precision=0),
-                hint=_macro_hint("Protein", macro_targets.protein_g) + f" · {_macro_badge(summary.macro_latest.protein_g, macro_targets.protein_g)}",
-            ),
-            CardRow(
-                label="Carbs",
-                value=_fmt_number(summary.macro_latest.carbs_g, " g", precision=0),
-                hint=_macro_hint("Carbs", macro_targets.carbs_g) + f" · {_macro_badge(summary.macro_latest.carbs_g, macro_targets.carbs_g)}",
-            ),
-            CardRow(
-                label="Fat",
-                value=_fmt_number(summary.macro_latest.fat_g, " g", precision=0),
-                hint=_macro_hint("Fat", macro_targets.fat_g) + f" · {_macro_badge(summary.macro_latest.fat_g, macro_targets.fat_g)}",
-            ),
-            CardRow(
-                label="Avg intake",
-                value=f"{_fmt_number(summary.macro_average.calories_kcal, ' kcal', precision=0)} · {summary.weight.lookback_days}d",
-                hint="Rolling calorie average",
-            ),
-        ],
-    )
+    sleep_values = [record.sleep_hours for record in history if record.sleep_hours is not None]
+    sleep_scale = max([8.0] + sleep_values) if sleep_values else 8.0
 
-    def _trend(latest: Optional[float], avg: Optional[float], unit: str, precision: int = 1) -> str:
-        if latest is None or avg is None:
-            return "—"
-        delta = latest - avg
-        if abs(delta) < 0.05:
-            return "flat"
-        direction = "up" if delta > 0 else "down"
-        return f"{direction} {abs(delta):.{precision}f}{unit}"
-
-    whoop_card = Card(
-        title="Recovery",
-        rows=[
-            CardRow(
-                label="Sleep",
-                value=_fmt_number(summary.whoop_latest.sleep_hours, " h"),
-                hint=f"{_trend(summary.whoop_latest.sleep_hours, summary.whoop_average.sleep_hours, ' h')}",
-            ),
-            CardRow(
-                label="Recovery",
-                value=_fmt_number(summary.whoop_latest.recovery_score, "%", precision=0),
-                hint="Whoop readiness",
-            ),
-            CardRow(
-                label="HRV",
-                value=_fmt_number(summary.whoop_latest.hrv_rmssd, " ms", precision=0),
-                hint=_trend(summary.whoop_latest.hrv_rmssd, summary.whoop_average.hrv_rmssd, ' ms', precision=0),
-            ),
-            CardRow(
-                label="Resting HR",
-                value=_fmt_number(summary.whoop_latest.resting_hr, " bpm", precision=0),
-                hint=_trend(summary.whoop_average.resting_hr, summary.whoop_latest.resting_hr, ' bpm', precision=0),
-            ),
-            CardRow(
-                label="Strain",
-                value=_fmt_number(summary.whoop_latest.strain, "", precision=1),
-                hint=_trend(summary.whoop_latest.strain, summary.whoop_average.strain, '', precision=1),
-            ),
-        ],
-    )
-
-    notes_text = latest_record.notes.strip() or "No notes logged yet."
-    lifestyle_card = Card(
-        title="Notes & Reminders",
-        rows=[
-            CardRow(label="Notes", value=notes_text[:200]),
-            CardRow(
-                label="Goal progress",
-                value=f"{summary.progress_percent:.1f}% complete" if summary.progress_percent is not None else "—",
-                hint=_fmt_delta(summary.weight_delta_start, " kg") + " since start",
-            ),
-        ],
-    )
-
-    cards = [weight_card, macros_card, whoop_card, lifestyle_card]
-    payload_cards = [
-        {
-            "title": card.title,
-            "rows": [
-                {key: value for key, value in asdict(row).items() if value}
-                for row in card.rows
-                if row.value
-            ],
-        }
-        for card in cards
-    ]
+    labels = [record.date.strftime("%m/%d") for record in history]
 
     charts = {
+        "labels": labels,
         "window_days": len(history),
         "weight": _line_chart(history, "weight_kg", " kg"),
         "body_fat": _line_chart(history, "body_fat_pct", "%"),
-        "protein": _protein_bars(history, macro_targets.protein_g),
+        "protein": _bar_chart(history, "protein_g", unit="g", target=100, calories_factor=4),
+        "carbs": _bar_chart(history, "carbs_g", unit="g", calories_factor=4),
+        "fat": _bar_chart(history, "fat_g", unit="g", calories_factor=9),
+        "sleep": _bar_chart(history, "sleep_hours", unit="h", scale_override=sleep_scale),
     }
 
+    projection = _projection(summary)
+
     payload = {
-        "header": header_value,
-        "subtitle": subtitle,
         "generated_at": generated_local.strftime("%Y-%m-%d %H:%M"),
-        "cards": payload_cards,
-        "progress": progress,
+        "summary": summary_block,
         "charts": charts,
+        "projection": projection,
     }
     return payload
 
 
 def payload_hash(payload: Dict[str, Any]) -> str:
-    """Deterministic hash of the payload for change detection."""
     encoded = json.dumps(payload, sort_keys=True).encode("utf-8")
     return hashlib.sha1(encoded).hexdigest()

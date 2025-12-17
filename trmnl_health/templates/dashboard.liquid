@@ -1,100 +1,64 @@
 <style>
   :root {
-    --card-border: 1px solid rgba(0, 0, 0, 0.08);
     --muted: rgba(0, 0, 0, 0.55);
+    --border: 1px solid rgba(0, 0, 0, 0.08);
+  }
+
+  body {
+    font-family: "Inter", "Helvetica", sans-serif;
   }
 
   .dashboard {
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    font-family: "Inter", "Helvetica", sans-serif;
+    gap: 18px;
   }
 
-  .header h1 {
-    font-size: 48px;
-    margin: 0;
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
   }
 
-  .header p {
-    color: var(--muted);
-    margin: 0;
-  }
-
-  .progress {
-    border: var(--card-border);
+  .summary-card {
+    border: var(--border);
     border-radius: 12px;
-    padding: 8px 12px;
+    padding: 12px;
   }
 
-  .progress-bar {
-    height: 8px;
-    background: black;
-    border-radius: 8px;
+  .summary-card h3 {
+    margin: 0;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
   }
 
-  .cards {
+  .summary-card .value {
+    font-size: 28px;
+    margin: 6px 0;
+  }
+
+  .summary-card .hint {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .line-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
   }
 
-  .card {
-    border: var(--card-border);
+  .chart-card {
+    border: var(--border);
     border-radius: 12px;
     padding: 12px;
   }
 
-  .card h2 {
-    font-size: 20px;
-    margin: 0 0 6px 0;
-  }
-
-  .card dl {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 4px;
-    margin: 0;
-  }
-
-  .card dt {
-    font-size: 12px;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-
-  .card dd {
+  .chart-card h2 {
     margin: 0 0 6px 0;
     font-size: 18px;
-  }
-
-  .hint {
-    font-size: 12px;
-    color: var(--muted);
-  }
-
-  .timestamp {
-    font-size: 10px;
-    color: var(--muted);
-    text-align: right;
-  }
-
-  @media (max-width: 620px) {
-    .cards {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  .chart-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
-  }
-
-  .chart-card {
-    border: var(--card-border);
-    border-radius: 12px;
-    padding: 12px;
   }
 
   .chart-card svg {
@@ -102,31 +66,123 @@
     height: 90px;
   }
 
-  .chart-card p {
-    margin: 0;
+  .bar-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .bar-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 120px;
+  }
+
+  .bar {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .bar-fill {
+    width: 12px;
+    background: black;
+    border-radius: 4px 4px 0 0;
+    transition: height 0.2s ease;
+  }
+
+  .bar-value {
+    font-size: 12px;
+  }
+
+  .bar-percent {
+    font-size: 11px;
     color: var(--muted);
   }
 
+  .bar-label {
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .projection {
+    border: var(--border);
+    border-radius: 12px;
+    padding: 12px;
+  }
+
+  .projection h2 {
+    margin: 0 0 8px 0;
+  }
+
+  .projection ul {
+    list-style: none;
+    padding: 0;
+    margin: 8px 0 0 0;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .projection li {
+    font-size: 13px;
+    padding: 6px;
+    border: 1px dashed rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+  }
+
+  .timestamp {
+    font-size: 11px;
+    color: var(--muted);
+    text-align: right;
+  }
+
   @media (max-width: 900px) {
-    .chart-grid {
+    .summary-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .projection ul {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 
-  @media (max-width: 620px) {
-    .chart-grid {
+  @media (max-width: 600px) {
+    .summary-grid,
+    .line-grid,
+    .bar-grid {
       grid-template-columns: 1fr;
     }
   }
 </style>
 
 <div class="dashboard">
-  <div class="header">
-    <h1>{{ header }}</h1>
-    <p>{{ subtitle }}</p>
-  </div>
+  <section class="summary-grid">
+    <div class="summary-card">
+      <h3>Current weight</h3>
+      <div class="value">{{ summary.current_weight }}</div>
+      <div class="hint">Latest morning reading</div>
+    </div>
+    <div class="summary-card">
+      <h3>Delta vs yesterday</h3>
+      <div class="value">{{ summary.delta_daily }}</div>
+      <div class="hint">Last logged entry</div>
+    </div>
+    <div class="summary-card">
+      <h3>Total lost</h3>
+      <div class="value">{{ summary.total_lost }}</div>
+      <div class="hint">Since first entry</div>
+    </div>
+    <div class="summary-card">
+      <h3>To target</h3>
+      <div class="value">{{ summary.to_goal }}</div>
+      <div class="hint">Remaining</div>
+    </div>
+  </section>
 
-  <div class="chart-grid">
+  <section class="line-grid">
     <div class="chart-card">
       <h2>Weight ({{ charts.window_days }}d)</h2>
       {% if charts.weight %}
@@ -135,7 +191,7 @@
         </svg>
         <div class="hint">{{ charts.weight.min }} – {{ charts.weight.max }}</div>
       {% else %}
-        <p>No recent data.</p>
+        <p>No recent weight data.</p>
       {% endif %}
     </div>
 
@@ -147,49 +203,117 @@
         </svg>
         <div class="hint">{{ charts.body_fat.min }} – {{ charts.body_fat.max }}</div>
       {% else %}
-        <p>No recent data.</p>
+        <p>No recent body fat entries.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="bar-grid">
+    <div class="chart-card">
+      <h2>Protein</h2>
+      {% if charts.protein %}
+        <div class="bar-chart">
+          {% for label in charts.labels %}
+            {% assign idx = forloop.index0 %}
+            {% assign height = charts.protein.heights[idx] %}
+            {% assign value = charts.protein.values[idx] %}
+            {% assign percent = charts.protein.percents[idx] %}
+            <div class="bar">
+              <div class="bar-fill" style="height: {{ height }}px;"></div>
+              <div class="bar-value">{{ value }}</div>
+              {% if percent != "" %}<div class="bar-percent">{{ percent }}</div>{% endif %}
+              <div class="bar-label">{{ label }}</div>
+            </div>
+          {% endfor %}
+        </div>
+        <div class="hint">Target {{ charts.protein.target_label }}</div>
+      {% else %}
+        <p>No protein data.</p>
       {% endif %}
     </div>
 
     <div class="chart-card">
-      <h2>Protein Intake</h2>
-      {% if charts.protein %}
-        <svg viewBox="0 0 280 80" preserveAspectRatio="none">
-          <line x1="0" y1="0" x2="280" y2="0" stroke="rgba(0,0,0,0.3)" stroke-dasharray="4 3"></line>
-          {% for bar in charts.protein.bars %}
-            <rect x="{{ bar.x }}" y="{{ bar.y }}" width="{{ charts.protein.bar_width }}" height="{{ bar.height }}" fill="black" opacity="0.75"></rect>
+      <h2>Carbs</h2>
+      {% if charts.carbs %}
+        <div class="bar-chart">
+          {% for label in charts.labels %}
+            {% assign idx = forloop.index0 %}
+            {% assign height = charts.carbs.heights[idx] %}
+            {% assign value = charts.carbs.values[idx] %}
+            {% assign percent = charts.carbs.percents[idx] %}
+            <div class="bar">
+              <div class="bar-fill" style="height: {{ height }}px;"></div>
+              <div class="bar-value">{{ value }}</div>
+              {% if percent != "" %}<div class="bar-percent">{{ percent }}</div>{% endif %}
+              <div class="bar-label">{{ label }}</div>
+            </div>
           {% endfor %}
-        </svg>
-        <div class="hint">Target {{ charts.protein.target_label }}</div>
+        </div>
+        <div class="hint">{{ charts.carbs.target_label }}</div>
       {% else %}
-        <p>No recent data.</p>
+        <p>No carb data.</p>
       {% endif %}
     </div>
-  </div>
 
-  {% if progress %}
-    <div class="progress">
-      <div class="progress-bar" style="width: {{ progress.percent }}%;"></div>
-      <div class="hint">{{ progress.label }}</div>
-    </div>
-  {% endif %}
-
-  <div class="cards">
-    {% for card in cards %}
-      <div class="card">
-        <h2>{{ card.title }}</h2>
-        <dl>
-          {% for row in card.rows %}
-            <dt>{{ row.label }}</dt>
-            <dd>{{ row.value }}</dd>
-            {% if row.hint %}
-              <div class="hint">{{ row.hint }}</div>
-            {% endif %}
+    <div class="chart-card">
+      <h2>Fat</h2>
+      {% if charts.fat %}
+        <div class="bar-chart">
+          {% for label in charts.labels %}
+            {% assign idx = forloop.index0 %}
+            {% assign height = charts.fat.heights[idx] %}
+            {% assign value = charts.fat.values[idx] %}
+            {% assign percent = charts.fat.percents[idx] %}
+            <div class="bar">
+              <div class="bar-fill" style="height: {{ height }}px;"></div>
+              <div class="bar-value">{{ value }}</div>
+              {% if percent != "" %}<div class="bar-percent">{{ percent }}</div>{% endif %}
+              <div class="bar-label">{{ label }}</div>
+            </div>
           {% endfor %}
-        </dl>
-      </div>
-    {% endfor %}
-  </div>
+        </div>
+        <div class="hint">{{ charts.fat.target_label }}</div>
+      {% else %}
+        <p>No fat data.</p>
+      {% endif %}
+    </div>
+
+    <div class="chart-card">
+      <h2>Sleep (hrs)</h2>
+      {% if charts.sleep %}
+        <div class="bar-chart">
+          {% for label in charts.labels %}
+            {% assign idx = forloop.index0 %}
+            {% assign height = charts.sleep.heights[idx] %}
+            {% assign value = charts.sleep.values[idx] %}
+            <div class="bar">
+              <div class="bar-fill" style="height: {{ height }}px;"></div>
+              <div class="bar-value">{{ value }}</div>
+              <div class="bar-label">{{ label }}</div>
+            </div>
+          {% endfor %}
+        </div>
+        <div class="hint">{{ charts.sleep.target_label }}</div>
+      {% else %}
+        <p>No sleep data.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="projection">
+    <h2>Trajectory</h2>
+    {% if projection.goal_date %}
+      <p>Rate of loss: {{ projection.rate_per_day }} ({{ projection.rate_per_week }})</p>
+      <p>Projected goal weight date: <strong>{{ projection.goal_date }}</strong></p>
+      <ul>
+        {% for milestone in projection.milestones %}
+          <li><strong>{{ milestone.weight }}</strong><br/>{{ milestone.date }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>{{ projection.message }}</p>
+    {% endif %}
+  </section>
 
   <div class="timestamp">Updated {{ generated_at }}</div>
 </div>
