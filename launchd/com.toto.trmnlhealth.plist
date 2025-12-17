@@ -22,6 +22,8 @@
       <key>SuccessfulExit</key>
       <false/>
     </dict>
+    <key>RunAtLoad</key>
+    <true/>
 
     <key>StandardOutPath</key>
     <string>/Users/toto/Library/Logs/trmnl_health.launchd.log</string>

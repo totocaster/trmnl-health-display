@@ -72,7 +72,7 @@ The entire payload stays under 2 kB, so it fits the webhook limit. Rate limiting
    cp launchd/com.toto.trmnlhealth.plist ~/Library/LaunchAgents/
    launchctl load ~/Library/LaunchAgents/com.toto.trmnlhealth.plist
    ```
-   This schedules a run once each hour at minute 30. If the Mac is asleep, launchd will execute the script soon after wake. Logs from launchd go to `~/Library/Logs/trmnl_health.launchd.log`.
+   This schedules a run once each hour at minute 30 and also fires immediately on login/boot (`RunAtLoad`). If the Mac is asleep, launchd will execute the script soon after wake. Logs from launchd go to `~/Library/Logs/trmnl_health.launchd.log`.
 3. **Manual control**
    ```bash
    launchctl start com.toto.trmnlhealth   # triggers immediately
