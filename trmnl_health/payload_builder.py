@@ -3,9 +3,10 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass, asdict
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 from zoneinfo import ZoneInfo
 
+from .data_sources import DailyRecord
 from .metrics import Summary
 from .settings import MacroTargets, Settings
 
@@ -74,7 +75,76 @@ def _tz(timezone_name: str) -> ZoneInfo:
         return ZoneInfo("UTC")
 
 
-def build_payload(summary: Summary, settings: Settings) -> Dict[str, Any]:
+def _line_chart(history: Sequence[DailyRecord], attr: str, unit: str) -> Optional[Dict[str, Any]]:
+    if not history:
+        return None
+
+    width = 280
+    height = 80
+    points = []
+    for idx, record in enumerate(history):
+        value = getattr(record, attr)
+        if value is None:
+            continue
+        points.append((idx, value))
+
+    if len(points) < 2:
+        return None
+
+    values = [value for _, value in points]
+    min_val = min(values)
+    max_val = max(values)
+    if abs(max_val - min_val) < 0.1:
+        min_val -= 0.5
+        max_val += 0.5
+
+    span = max(len(history) - 1, 1)
+    step = width / span
+    coord_pairs = []
+    for idx, value in points:
+        x = round(idx * step, 1)
+        norm = (value - min_val) / (max_val - min_val)
+        y = round(height - (norm * height), 1)
+        coord_pairs.append(f"{x},{y}")
+
+    return {
+        "points": " ".join(coord_pairs),
+        "min": f"{min_val:.1f}{unit}",
+        "max": f"{max_val:.1f}{unit}",
+    }
+
+
+def _protein_bars(history: Sequence[DailyRecord], target: float) -> Optional[Dict[str, Any]]:
+    if not history:
+        return None
+
+    width = 280
+    height = 80
+    count = len(history)
+    if count == 0:
+        return None
+
+    slot_width = width / count
+    bar_width = max(slot_width - 2, 4)
+    bars = []
+    for idx, record in enumerate(history):
+        value = record.protein_g
+        ratio = 0.0
+        if value is not None and target > 0:
+            ratio = min(value / target, 1.0)
+        bar_height = round(ratio * height, 2)
+        x = round(idx * slot_width + (slot_width - bar_width) / 2, 1)
+        y = round(height - bar_height, 1)
+        bars.append({"x": x, "y": y, "height": round(bar_height, 1)})
+
+    return {
+        "bars": bars,
+        "bar_width": round(bar_width, 1),
+        "target_label": f"{target:.0f} g",
+    }
+
+
+def build_payload(summary: Summary, settings: Settings, history: Sequence[DailyRecord]) -> Dict[str, Any]:
     tzinfo = _tz(settings.timezone)
     generated_local = summary.generated_at.astimezone(tzinfo)
     latest_record = summary.latest_record
@@ -212,12 +282,20 @@ def build_payload(summary: Summary, settings: Settings) -> Dict[str, Any]:
         for card in cards
     ]
 
+    charts = {
+        "window_days": len(history),
+        "weight": _line_chart(history, "weight_kg", " kg"),
+        "body_fat": _line_chart(history, "body_fat_pct", "%"),
+        "protein": _protein_bars(history, macro_targets.protein_g),
+    }
+
     payload = {
         "header": header_value,
         "subtitle": subtitle,
         "generated_at": generated_local.strftime("%Y-%m-%d %H:%M"),
         "cards": payload_cards,
         "progress": progress,
+        "charts": charts,
     }
     return payload
 
