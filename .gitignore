@@ -1,0 +1,16 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.mypy_cache/
+.pytest_cache/
+dist/
+build/
+.DS_Store
+.coverage
+.ruff_cache/
+.idea/
+.vscode/
+.cache/
+state.json
+trmnl_health_state.json

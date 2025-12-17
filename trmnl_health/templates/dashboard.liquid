@@ -1,0 +1,120 @@
+<style>
+  :root {
+    --card-border: 1px solid rgba(0, 0, 0, 0.08);
+    --muted: rgba(0, 0, 0, 0.55);
+  }
+
+  .dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    font-family: "Inter", "Helvetica", sans-serif;
+  }
+
+  .header h1 {
+    font-size: 48px;
+    margin: 0;
+  }
+
+  .header p {
+    color: var(--muted);
+    margin: 0;
+  }
+
+  .progress {
+    border: var(--card-border);
+    border-radius: 12px;
+    padding: 8px 12px;
+  }
+
+  .progress-bar {
+    height: 8px;
+    background: black;
+    border-radius: 8px;
+  }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .card {
+    border: var(--card-border);
+    border-radius: 12px;
+    padding: 12px;
+  }
+
+  .card h2 {
+    font-size: 20px;
+    margin: 0 0 6px 0;
+  }
+
+  .card dl {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 4px;
+    margin: 0;
+  }
+
+  .card dt {
+    font-size: 12px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .card dd {
+    margin: 0 0 6px 0;
+    font-size: 18px;
+  }
+
+  .hint {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .timestamp {
+    font-size: 10px;
+    color: var(--muted);
+    text-align: right;
+  }
+
+  @media (max-width: 620px) {
+    .cards {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<div class="dashboard">
+  <div class="header">
+    <h1>{{ header }}</h1>
+    <p>{{ subtitle }}</p>
+  </div>
+
+  {% if progress %}
+    <div class="progress">
+      <div class="progress-bar" style="width: {{ progress.percent }}%;"></div>
+      <div class="hint">{{ progress.label }}</div>
+    </div>
+  {% endif %}
+
+  <div class="cards">
+    {% for card in cards %}
+      <div class="card">
+        <h2>{{ card.title }}</h2>
+        <dl>
+          {% for row in card.rows %}
+            <dt>{{ row.label }}</dt>
+            <dd>{{ row.value }}</dd>
+            {% if row.hint %}
+              <div class="hint">{{ row.hint }}</div>
+            {% endif %}
+          {% endfor %}
+        </dl>
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="timestamp">Updated {{ generated_at }}</div>
+</div>
