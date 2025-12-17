@@ -24,7 +24,8 @@ Scripts that parse `~/Notes/totocaster/Attachments/weight-loss-tracker.csv`, bui
 
    (Device API key is optional; it enables the `current-screen` helper.)
 
-3. **Paste the Liquid markup** from `trmnl_health/templates/dashboard.liquid` into the Private Plugin’s Markup editor in the TRMNL UI.
+3. **Paste the Liquid markup** from `trmnl_health/templates/dashboard.liquid` into the Private Plugin’s Markup editor in the TRMNL UI.  
+   The current template focuses on weight/body-fat trends plus projected goal date, matching the simplified layout shown in the repo.
 
 ## Commands
 
@@ -63,7 +64,22 @@ Scripts that parse `~/Notes/totocaster/Attachments/weight-loss-tracker.csv`, bui
 
 The entire payload stays under 2 kB, so it fits the webhook limit. Rate limiting considerations: the CLI should run a handful of times per day (well below the 12/hr cap).
 
+### Automating daily runs (launchd)
+
+1. **Wrapper script** – `scripts/run_dashboard.sh` is already committed. It launches the CLI with a clean `PATH` and writes logs to `~/Library/Logs/trmnl_health.log`. Review the script if your Python path differs.
+2. **Install the launch agent**
+   ```bash
+   cp launchd/com.toto.trmnlhealth.plist ~/Library/LaunchAgents/
+   launchctl load ~/Library/LaunchAgents/com.toto.trmnlhealth.plist
+   ```
+   This schedules a run every day at 09:30 local time. If the Mac is asleep, launchd will execute the script soon after wake. Logs from launchd go to `~/Library/Logs/trmnl_health.launchd.log`.
+3. **Manual control**
+   ```bash
+   launchctl start com.toto.trmnlhealth   # triggers immediately
+   launchctl unload ~/Library/LaunchAgents/com.toto.trmnlhealth.plist
+   ```
+   Update the plist if paths change, then unload/load again.
+
 ## Next steps
 
-- Wire up launchd or cron once you’re satisfied with the visuals.
 - Expand the template or payload with streak counters, fasting windows, or TODO reminders as you gather more tracker data.
