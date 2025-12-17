@@ -71,14 +71,14 @@ The entire payload stays under 2 kB, so it fits the webhook limit. Rate limiting
 1. **Wrapper script** – `scripts/run_dashboard.sh` is already committed. It launches the CLI with a clean `PATH` and writes logs to `~/Library/Logs/trmnl_health.log`. Review the script if your Python path differs.
 2. **Install the launch agent (runs at :30 past every hour)**
    ```bash
-   cp launchd/com.toto.trmnlhealth.plist ~/Library/LaunchAgents/
-   launchctl load ~/Library/LaunchAgents/com.toto.trmnlhealth.plist
+   cp launchd/co.ttvl.trmnlhealth.plist ~/Library/LaunchAgents/
+   launchctl load ~/Library/LaunchAgents/co.ttvl.trmnlhealth.plist
    ```
    This schedules a run once each hour at minute 30 and also fires immediately on login/boot (`RunAtLoad`). If the Mac is asleep, launchd will execute the script soon after wake. Logs from launchd go to `~/Library/Logs/trmnl_health.launchd.log`.
 3. **Manual control**
    ```bash
    launchctl start co.ttvl.trmnlhealth   # triggers immediately
-   launchctl unload ~/Library/LaunchAgents/com.toto.trmnlhealth.plist
+   launchctl unload ~/Library/LaunchAgents/co.ttvl.trmnlhealth.plist
    ```
    Update the plist if paths change, then unload/load again.
 
