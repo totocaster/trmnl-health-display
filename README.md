@@ -67,12 +67,12 @@ The entire payload stays under 2 kB, so it fits the webhook limit. Rate limiting
 ### Automating daily runs (launchd)
 
 1. **Wrapper script** – `scripts/run_dashboard.sh` is already committed. It launches the CLI with a clean `PATH` and writes logs to `~/Library/Logs/trmnl_health.log`. Review the script if your Python path differs.
-2. **Install the launch agent**
+2. **Install the launch agent (runs at :30 past every hour)**
    ```bash
    cp launchd/com.toto.trmnlhealth.plist ~/Library/LaunchAgents/
    launchctl load ~/Library/LaunchAgents/com.toto.trmnlhealth.plist
    ```
-   This schedules a run every day at 09:30 local time. If the Mac is asleep, launchd will execute the script soon after wake. Logs from launchd go to `~/Library/Logs/trmnl_health.launchd.log`.
+   This schedules a run once each hour at minute 30. If the Mac is asleep, launchd will execute the script soon after wake. Logs from launchd go to `~/Library/Logs/trmnl_health.launchd.log`.
 3. **Manual control**
    ```bash
    launchctl start com.toto.trmnlhealth   # triggers immediately
