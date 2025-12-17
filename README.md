@@ -1,10 +1,18 @@
 # TRMNL Health Dashboard
 
-> **Note**: This repo exists purely for my personal curiosity/projects. It’s tailored to my hardware, files, and TRMNL plugin settings; it is not intended for plug-and-play use.
+> **Note**: This repo exists purely for my personal curiosity/projects. It’s tailored to my hardware, files, and TRMNL plugin settings; it is not intended for plug-and-play use. The screen auto-refreshes every hour at `:30`, and logs live in `~/Library/Logs/trmnl_health.log` plus `~/Library/Logs/trmnl_health.launchd.log`.
 
 Scripts that parse `~/Notes/totocaster/Attachments/weight-loss-tracker.csv`, build a morning snapshot of weight, nutrition, and Whoop metrics, and push the summary to your TRMNL private plugin via webhook.
 
 ## Setup
+
+0. *(Optional)* **Bootstrap everything**
+
+   ```bash
+   ./scripts/bootstrap.sh
+   ```
+
+   This creates/updates the virtualenv, installs dependencies, copies the launchd plist into place, and reloads the hourly job. Skip to step 3 if you use this helper.
 
 1. **Install dependencies**
 
@@ -85,3 +93,7 @@ The entire payload stays under 2 kB, so it fits the webhook limit. Rate limiting
 ## Next steps
 
 - Expand the template or payload with streak counters, fasting windows, or TODO reminders as you gather more tracker data.
+
+## Payload reference
+
+`docs/payload-example.json` contains a representative `merge_variables` payload generated via `python -m trmnl_health publish --dry-run --show-payload`. Update it whenever the schema changes so the Liquid template has a concrete example to validate against.
