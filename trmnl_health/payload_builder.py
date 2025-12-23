@@ -68,59 +68,6 @@ def _line_chart(history: Sequence[DailyRecord], attr: str, unit: str) -> Optiona
     }
 
 
-def _bar_chart(
-    history: Sequence[DailyRecord],
-    attr: str,
-    *,
-    unit: str,
-    target: Optional[float] = None,
-    calories_factor: Optional[float] = None,
-    scale_override: Optional[float] = None,
-) -> Optional[Dict[str, Any]]:
-    values = [getattr(record, attr) for record in history if getattr(record, attr) is not None]
-    if not values:
-        return None
-
-    scale = scale_override or target or max(values)
-    if scale <= 0:
-        scale = max(values)
-
-    heights: List[float] = []
-    values: List[str] = []
-    percents: List[str] = []
-    for record in history:
-        value = getattr(record, attr)
-        if value is None or value <= 0:
-            height = 0.0
-            display = "—"
-        else:
-            ratio = min(value / scale, 1.0)
-            height = round(ratio * 80, 1)
-            display = f"{value:.0f}{unit}"
-
-        percent = None
-        if calories_factor and value is not None and value > 0 and record.calories_kcal:
-            fraction = min(1.0, (value * calories_factor) / record.calories_kcal)
-            percent = f"{fraction * 100:.0f}%"
-
-        heights.append(height)
-        values.append(display)
-        percents.append(percent or "")
-
-    meta: Dict[str, Any] = {
-        "heights": heights,
-        "values": values,
-        "percents": percents,
-    }
-    if target:
-        meta["target_label"] = f"{target:.0f}{unit}"
-    elif scale_override:
-        meta["target_label"] = f"max {scale_override:.0f}{unit}"
-    else:
-        meta["target_label"] = f"max {scale:.0f}{unit}"
-    return meta
-
-
 def _projection(summary: Summary) -> Dict[str, Any]:
     latest_weight = summary.weight.latest_weight
     start_weight = summary.weight.start_weight
@@ -151,24 +98,10 @@ def _projection(summary: Summary) -> Dict[str, Any]:
     base_date = summary.generated_at.date()
     goal_date = base_date + timedelta(days=round(days_to_goal))
 
-    fractions = [0.8, 0.6, 0.4, 0.2]
-    milestones = []
-    for fraction in fractions:
-        weight_value = target_weight + (remaining * fraction)
-        milestone_days = round(days_to_goal * fraction)
-        milestone_date = base_date + timedelta(days=milestone_days)
-        milestones.append(
-            {
-                "weight": f"{weight_value:.1f} kg",
-                "date": milestone_date.strftime("%b %d"),
-            }
-        )
-
     return {
         "rate_per_day": f"{loss_per_day:.2f} kg/day",
         "rate_per_week": f"{loss_per_day * 7:.2f} kg/week",
         "goal_date": goal_date.strftime("%b %d, %Y"),
-        "milestones": milestones,
     }
 
 
@@ -192,20 +125,10 @@ def build_payload(summary: Summary, settings: Settings, history: Sequence[DailyR
         "to_goal": _fmt_number(to_goal, " kg"),
     }
 
-    sleep_values = [record.sleep_hours for record in history if record.sleep_hours is not None]
-    sleep_scale = max([8.0] + sleep_values) if sleep_values else 8.0
-
-    labels = [record.date.strftime("%m/%d") for record in history]
-
     charts = {
-        "labels": labels,
         "window_days": len(history),
         "weight": _line_chart(history, "weight_kg", " kg"),
         "body_fat": _line_chart(history, "body_fat_pct", "%"),
-        "protein": _bar_chart(history, "protein_g", unit="g", target=100, calories_factor=4),
-        "carbs": _bar_chart(history, "carbs_g", unit="g", calories_factor=4),
-        "fat": _bar_chart(history, "fat_g", unit="g", calories_factor=9),
-        "sleep": _bar_chart(history, "sleep_hours", unit="h", scale_override=sleep_scale),
     }
 
     projection = _projection(summary)
