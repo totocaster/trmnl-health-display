@@ -109,7 +109,6 @@ def build_payload(summary: Summary, settings: Settings, history: Sequence[DailyR
     tzinfo = _tz(settings.timezone)
     generated_local = summary.generated_at.astimezone(tzinfo)
 
-    weight_delta_prev = summary.weight_delta_prev
     total_lost = None
     if summary.weight.start_weight is not None and summary.weight.latest_weight is not None:
         total_lost = summary.weight.start_weight - summary.weight.latest_weight
@@ -120,7 +119,7 @@ def build_payload(summary: Summary, settings: Settings, history: Sequence[DailyR
 
     summary_block = {
         "current_weight": _fmt_number(summary.weight.latest_weight, " kg"),
-        "delta_daily": _fmt_delta(weight_delta_prev, " kg"),
+        "rolling_avg": _fmt_number(summary.weight.lookback_avg_weight, " kg"),
         "total_lost": _fmt_number(total_lost, " kg"),
         "to_goal": _fmt_number(to_goal, " kg"),
     }

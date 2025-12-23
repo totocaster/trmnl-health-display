@@ -1,8 +1,8 @@
 {
-  "generated_at": "2025-12-23 11:02",
+  "generated_at": "2025-12-23 11:09",
   "summary": {
     "current_weight": "105.4 kg",
-    "delta_daily": "+0.2 kg",
+    "rolling_avg": "104.8 kg",
     "total_lost": "3.4 kg",
     "to_goal": "35.4 kg"
   },
